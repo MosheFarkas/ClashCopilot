@@ -86,6 +86,8 @@ src/clash_copilot/
   geometry.py            Normalized ROI regions + per-setup layout JSON
   report.py              Terminal formatting of GameState
   synthetic.py           Scripted-match frame rendering for demos/tests
+  classify/              Learned card identity: augmentation, CNN, benchmark
+                         (torch via the optional [ml] extra)
   __main__.py            CLI: python -m clash_copilot VIDEO --layout ... --templates ...
   cards.py, crapi.py     Card metadata (bundled sample; official API helpers)
 scripts/
@@ -93,20 +95,21 @@ scripts/
   make_synthetic_video.py  Synthetic clip + templates + layout for the CLI
   fetch_cards.py         Full roster + icons from the official API
   eval_cards.py          Benchmark: card identity vs real footage crops
+  train_classifier.py    Train the CNN on augmented portraits ([ml] extra)
 tests/                   43 tests; state, geometry, and detection logic covered
 ```
 
 ## Current limitations
 
 - **The demo is synthetic.** Real footage needs: ROI calibration for a chosen recording setup, real card art as templates, and an event trigger that doesn't assume card portraits appear in a fixed zone (real options: spectator-view deck-strip diffing, or spawn-dust detection).
-- **Template matching measured at ~53% top-1 on real footage** (`scripts/eval_cards.py`, official portraits vs real hand-slot crops from the MIT-licensed [KataCR dataset](https://github.com/wty-yy/Clash-Royale-Dataset)). Real slots vary too much — grey-out states, the "next" slot's countdown overlay, border styles. This confirms the prior-art conclusion: card identity needs a small learned classifier; template matching remains fine for synthetic footage and static UI anchors.
+- **Card identity on real footage is measured, not solved.** Benchmark (`scripts/eval_cards.py`, full 122-card roster vs real hand-slot crops from the MIT-licensed [KataCR dataset](https://github.com/wty-yy/Clash-Royale-Dataset)): template matching **64.3%** top-1 (after fixing an icon alpha-channel bug that had baked black silhouettes into every template — worth +11 points on its own), tiny CNN trained on augmented official art **53.0%**. The CNN masters the synthetic domain but doesn't transfer: real crops mix grey-out states, countdown-text overlays, dark evolution frames, and ~60px source resolution. The honest fix is real labeled training data, not more augmentation (see roadmap).
 - One play at a time: overlapping/simultaneous plays within the debounce window would be missed.
 - Elixir edge cases unmodeled (Mirror, Elixir Collector, champion abilities); the estimate drifts if any play is missed — `underflows` and `anomalies` surface that.
 - Timestamps come from frame index / fps, not the in-game timer (OCR on the match clock would be more robust to dropped frames).
 
 ## Roadmap
 
-1. **Card-identity classifier**: a tiny CNN trained on augmented official portraits (grey-out, overlay, scale augmentation — the AmarSaini recipe, which handled 87 classes with a LeNet in 2018), benchmarked by `scripts/eval_cards.py` against real crops. Template matching measured 53% top-1; the classifier needs to clear ~95% to be usable.
+1. **Real training data for the card classifier.** The CNN + augmentation pipeline exists (`clash_copilot/classify/`, `scripts/train_classifier.py`) but synthetic-only training caps out at 53% vs the 64% template baseline. The unlock: semi-automatic labeling from the KataCR `part3` hand-bar sequences — each episode's recorder deck is known, so slot crops can be harvested and weakly labeled at scale, then a small human pass cleans them. Target ≥95% on the benchmark before wiring the classifier into the pipeline.
 2. **Better event trigger**: spawn-dust/elixir-droplet detection as the class-agnostic "a card was played" signal, with card identity classified from the surrounding crop.
 3. **Match-clock OCR** to replace frame-index time and handle double/triple elixir transitions exactly.
 4. **Evaluation harness**: replay footage + hand-logged play sequences → precision/recall for detection, mean absolute error for elixir.
