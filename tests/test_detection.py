@@ -1,7 +1,7 @@
 import numpy as np
 
 from clash_copilot.capture.source import Frame
-from clash_copilot.detection.template import TemplateCardDetector
+from clash_copilot.detection.template import TemplateCardDetector, best_template_match
 
 TILE = 40
 
@@ -29,6 +29,21 @@ def feed(detector, sequence):
         if event is not None:
             events.append(event)
     return events
+
+
+def test_best_template_match_classifies_whole_image():
+    templates = make_templates(["Hog Rider", "Fireball"])
+    card, score = best_template_match(templates["Fireball"], templates)
+    assert card == "Fireball"
+    assert score > 0.99
+
+
+def test_best_template_match_skips_oversized_templates():
+    templates = make_templates(["Hog Rider"])
+    small = np.zeros((10, 10, 3), dtype=np.uint8)
+    card, score = best_template_match(small, templates)
+    assert card is None
+    assert score == 0.0
 
 
 def test_emits_single_event_after_confirm_frames():

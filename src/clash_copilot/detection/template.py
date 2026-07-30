@@ -22,6 +22,27 @@ class PlayEvent:
     score: float  # template-match confidence 0..1
 
 
+def best_template_match(
+    image: np.ndarray, templates: dict[str, np.ndarray]
+) -> tuple[str | None, float]:
+    """Best-scoring template anywhere in `image` (normalized correlation).
+
+    Templates larger than the image are skipped; returns (None, 0.0) when
+    nothing fits or the image is too uniform for normalized matching.
+    """
+    if image.std() < 1e-6:
+        return None, 0.0
+    best_card, best_score = None, 0.0
+    for card, template in templates.items():
+        if image.shape[0] < template.shape[0] or image.shape[1] < template.shape[1]:
+            continue
+        result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+        score = float(np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0).max())
+        if score > best_score:
+            best_card, best_score = card, score
+    return best_card, best_score
+
+
 class TemplateCardDetector:
     def __init__(
         self,
@@ -59,16 +80,7 @@ class TemplateCardDetector:
         if self.roi is not None:
             x, y, w, h = self.roi
             image = image[y : y + h, x : x + w]
-        if image.std() < 1e-6:  # uniform region: normalized matching is undefined
-            return None, 0.0
-        best_card, best_score = None, 0.0
-        for card, template in self.templates.items():
-            if image.shape[0] < template.shape[0] or image.shape[1] < template.shape[1]:
-                continue
-            result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
-            score = float(np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0).max())
-            if score > best_score:
-                best_card, best_score = card, score
+        best_card, best_score = best_template_match(image, self.templates)
         if best_score < self.threshold:
             return None, 0.0
         return best_card, best_score

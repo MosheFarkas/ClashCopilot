@@ -12,8 +12,13 @@ data/icons/
 data/cards.json
 data/decks.json
 data/footage/
+data/synthetic/
 *.mp4
 *.mov
+*.avi
 
 # OS
 .DS_Store
+
+# Local secrets
+.env
