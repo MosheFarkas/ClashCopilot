@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.pytest_cache/
+
+# Fetched/generated data (bundled samples in data/ ARE committed)
+data/icons/
+data/cards.json
+data/decks.json
+data/footage/
+*.mp4
+*.mov
+
+# OS
+.DS_Store
