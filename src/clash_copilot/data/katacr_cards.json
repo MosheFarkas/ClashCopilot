@@ -1,0 +1,509 @@
+{
+ "note": "Vendored from wty-yy/KataCR (MIT) katacr/constants/card_list.py: episode card indices -> slug + elixir cost.",
+ "cards": [
+  {
+   "slug": "mirror",
+   "elixir": -1
+  },
+  {
+   "slug": "electro-spirit",
+   "elixir": 1
+  },
+  {
+   "slug": "fire-spirit",
+   "elixir": 1
+  },
+  {
+   "slug": "heal-spirit",
+   "elixir": 1
+  },
+  {
+   "slug": "ice-spirit",
+   "elixir": 1
+  },
+  {
+   "slug": "ice-spirit-evolution",
+   "elixir": 1
+  },
+  {
+   "slug": "skeletons",
+   "elixir": 1
+  },
+  {
+   "slug": "skeletons-evolution",
+   "elixir": 1
+  },
+  {
+   "slug": "barbarian-barrel",
+   "elixir": 2
+  },
+  {
+   "slug": "bats",
+   "elixir": 2
+  },
+  {
+   "slug": "bats-evolution",
+   "elixir": 2
+  },
+  {
+   "slug": "bomber",
+   "elixir": 2
+  },
+  {
+   "slug": "bomber-evolution",
+   "elixir": 2
+  },
+  {
+   "slug": "giant-snowball",
+   "elixir": 2
+  },
+  {
+   "slug": "goblins",
+   "elixir": 2
+  },
+  {
+   "slug": "ice-golem",
+   "elixir": 2
+  },
+  {
+   "slug": "rage",
+   "elixir": 2
+  },
+  {
+   "slug": "spear-goblins",
+   "elixir": 2
+  },
+  {
+   "slug": "the-log",
+   "elixir": 2
+  },
+  {
+   "slug": "wall-breakers",
+   "elixir": 2
+  },
+  {
+   "slug": "wall-breakers-evolution",
+   "elixir": 2
+  },
+  {
+   "slug": "zap",
+   "elixir": 2
+  },
+  {
+   "slug": "zap-evolution",
+   "elixir": 2
+  },
+  {
+   "slug": "archers",
+   "elixir": 3
+  },
+  {
+   "slug": "archers-evolution",
+   "elixir": 3
+  },
+  {
+   "slug": "arrows",
+   "elixir": 3
+  },
+  {
+   "slug": "bandit",
+   "elixir": 3
+  },
+  {
+   "slug": "cannon",
+   "elixir": 3
+  },
+  {
+   "slug": "clone",
+   "elixir": 3
+  },
+  {
+   "slug": "dart-goblin",
+   "elixir": 3
+  },
+  {
+   "slug": "earthquake",
+   "elixir": 3
+  },
+  {
+   "slug": "elixir-golem",
+   "elixir": 3
+  },
+  {
+   "slug": "firecracker",
+   "elixir": 3
+  },
+  {
+   "slug": "firecracker-evolution",
+   "elixir": 3
+  },
+  {
+   "slug": "fisherman",
+   "elixir": 3
+  },
+  {
+   "slug": "goblin-barrel",
+   "elixir": 3
+  },
+  {
+   "slug": "goblin-gang",
+   "elixir": 3
+  },
+  {
+   "slug": "guards",
+   "elixir": 3
+  },
+  {
+   "slug": "ice-wizard",
+   "elixir": 3
+  },
+  {
+   "slug": "knight",
+   "elixir": 3
+  },
+  {
+   "slug": "knight-evolution",
+   "elixir": 3
+  },
+  {
+   "slug": "little-prince",
+   "elixir": 3
+  },
+  {
+   "slug": "mega-minion",
+   "elixir": 3
+  },
+  {
+   "slug": "miner",
+   "elixir": 3
+  },
+  {
+   "slug": "minions",
+   "elixir": 3
+  },
+  {
+   "slug": "princess",
+   "elixir": 3
+  },
+  {
+   "slug": "royal-delivery",
+   "elixir": 3
+  },
+  {
+   "slug": "royal-ghost",
+   "elixir": 3
+  },
+  {
+   "slug": "skeleton-army",
+   "elixir": 3
+  },
+  {
+   "slug": "skeleton-barrel",
+   "elixir": 3
+  },
+  {
+   "slug": "tombstone",
+   "elixir": 3
+  },
+  {
+   "slug": "tornado",
+   "elixir": 3
+  },
+  {
+   "slug": "baby-dragon",
+   "elixir": 4
+  },
+  {
+   "slug": "battle-healer",
+   "elixir": 4
+  },
+  {
+   "slug": "battle-ram",
+   "elixir": 4
+  },
+  {
+   "slug": "battle-ram-evolution",
+   "elixir": 4
+  },
+  {
+   "slug": "bomb-tower",
+   "elixir": 4
+  },
+  {
+   "slug": "dark-prince",
+   "elixir": 4
+  },
+  {
+   "slug": "electro-wizard",
+   "elixir": 4
+  },
+  {
+   "slug": "fireball",
+   "elixir": 4
+  },
+  {
+   "slug": "flying-machine",
+   "elixir": 4
+  },
+  {
+   "slug": "freeze",
+   "elixir": 4
+  },
+  {
+   "slug": "furnace",
+   "elixir": 4
+  },
+  {
+   "slug": "goblin-cage",
+   "elixir": 4
+  },
+  {
+   "slug": "goblin-drill",
+   "elixir": 4
+  },
+  {
+   "slug": "golden-knight",
+   "elixir": 4
+  },
+  {
+   "slug": "hog-rider",
+   "elixir": 4
+  },
+  {
+   "slug": "hunter",
+   "elixir": 4
+  },
+  {
+   "slug": "inferno-dragon",
+   "elixir": 4
+  },
+  {
+   "slug": "lumberjack",
+   "elixir": 4
+  },
+  {
+   "slug": "magic-archer",
+   "elixir": 4
+  },
+  {
+   "slug": "mighty-miner",
+   "elixir": 4
+  },
+  {
+   "slug": "mini-pekka",
+   "elixir": 4
+  },
+  {
+   "slug": "mortar",
+   "elixir": 4
+  },
+  {
+   "slug": "mortar-evolution",
+   "elixir": 4
+  },
+  {
+   "slug": "mother-witch",
+   "elixir": 4
+  },
+  {
+   "slug": "musketeer",
+   "elixir": 4
+  },
+  {
+   "slug": "night-witch",
+   "elixir": 4
+  },
+  {
+   "slug": "phoenix",
+   "elixir": 4
+  },
+  {
+   "slug": "poison",
+   "elixir": 4
+  },
+  {
+   "slug": "skeleton-dragons",
+   "elixir": 4
+  },
+  {
+   "slug": "skeleton-king",
+   "elixir": 4
+  },
+  {
+   "slug": "tesla",
+   "elixir": 4
+  },
+  {
+   "slug": "tesla-evolution",
+   "elixir": 4
+  },
+  {
+   "slug": "valkyrie",
+   "elixir": 4
+  },
+  {
+   "slug": "valkyrie-evolution",
+   "elixir": 4
+  },
+  {
+   "slug": "zappies",
+   "elixir": 4
+  },
+  {
+   "slug": "archer-queen",
+   "elixir": 5
+  },
+  {
+   "slug": "balloon",
+   "elixir": 5
+  },
+  {
+   "slug": "barbarians",
+   "elixir": 5
+  },
+  {
+   "slug": "barbarians-evolution",
+   "elixir": 5
+  },
+  {
+   "slug": "bowler",
+   "elixir": 5
+  },
+  {
+   "slug": "cannon-cart",
+   "elixir": 5
+  },
+  {
+   "slug": "electro-dragon",
+   "elixir": 5
+  },
+  {
+   "slug": "executioner",
+   "elixir": 5
+  },
+  {
+   "slug": "giant",
+   "elixir": 5
+  },
+  {
+   "slug": "goblin-hut",
+   "elixir": 5
+  },
+  {
+   "slug": "graveyard",
+   "elixir": 5
+  },
+  {
+   "slug": "inferno-tower",
+   "elixir": 5
+  },
+  {
+   "slug": "minion-horde",
+   "elixir": 5
+  },
+  {
+   "slug": "monk",
+   "elixir": 5
+  },
+  {
+   "slug": "prince",
+   "elixir": 5
+  },
+  {
+   "slug": "ram-rider",
+   "elixir": 5
+  },
+  {
+   "slug": "rascals",
+   "elixir": 5
+  },
+  {
+   "slug": "royal-hogs",
+   "elixir": 5
+  },
+  {
+   "slug": "witch",
+   "elixir": 5
+  },
+  {
+   "slug": "wizard",
+   "elixir": 5
+  },
+  {
+   "slug": "barbarian-hut",
+   "elixir": 6
+  },
+  {
+   "slug": "elite-barbarians",
+   "elixir": 6
+  },
+  {
+   "slug": "elixir-collector",
+   "elixir": 6
+  },
+  {
+   "slug": "giant-skeleton",
+   "elixir": 6
+  },
+  {
+   "slug": "goblin-giant",
+   "elixir": 6
+  },
+  {
+   "slug": "lightning",
+   "elixir": 6
+  },
+  {
+   "slug": "rocket",
+   "elixir": 6
+  },
+  {
+   "slug": "royal-giant",
+   "elixir": 6
+  },
+  {
+   "slug": "royal-giant-evolution",
+   "elixir": 6
+  },
+  {
+   "slug": "sparky",
+   "elixir": 6
+  },
+  {
+   "slug": "x-bow",
+   "elixir": 6
+  },
+  {
+   "slug": "electro-giant",
+   "elixir": 7
+  },
+  {
+   "slug": "lava-hound",
+   "elixir": 7
+  },
+  {
+   "slug": "mega-knight",
+   "elixir": 7
+  },
+  {
+   "slug": "pekka",
+   "elixir": 7
+  },
+  {
+   "slug": "royal-recruits",
+   "elixir": 7
+  },
+  {
+   "slug": "royal-recruits-evolution",
+   "elixir": 7
+  },
+  {
+   "slug": "golem",
+   "elixir": 8
+  },
+  {
+   "slug": "three-musketeers",
+   "elixir": 9
+  }
+ ]
+}

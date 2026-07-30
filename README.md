@@ -86,6 +86,8 @@ src/clash_copilot/
   geometry.py            Normalized ROI regions + per-setup layout JSON
   report.py              Terminal formatting of GameState
   synthetic.py           Scripted-match frame rendering for demos/tests
+  classify/              Learned card identity: augmentation, CNN, benchmark
+                         (torch via the optional [ml] extra)
   __main__.py            CLI: python -m clash_copilot VIDEO --layout ... --templates ...
   cards.py, crapi.py     Card metadata (bundled sample; official API helpers)
 scripts/
@@ -93,20 +95,22 @@ scripts/
   make_synthetic_video.py  Synthetic clip + templates + layout for the CLI
   fetch_cards.py         Full roster + icons from the official API
   eval_cards.py          Benchmark: card identity vs real footage crops
+  train_classifier.py    Train the CNN on augmented portraits ([ml] extra)
 tests/                   43 tests; state, geometry, and detection logic covered
 ```
 
 ## Current limitations
 
 - **The demo is synthetic.** Real footage needs: ROI calibration for a chosen recording setup, real card art as templates, and an event trigger that doesn't assume card portraits appear in a fixed zone (real options: spectator-view deck-strip diffing, or spawn-dust detection).
-- **Template matching measured at ~53% top-1 on real footage** (`scripts/eval_cards.py`, official portraits vs real hand-slot crops from the MIT-licensed [KataCR dataset](https://github.com/wty-yy/Clash-Royale-Dataset)). Real slots vary too much — grey-out states, the "next" slot's countdown overlay, border styles. This confirms the prior-art conclusion: card identity needs a small learned classifier; template matching remains fine for synthetic footage and static UI anchors.
+- **Card identity on real footage is measured, not solved.** Benchmark (`scripts/eval_cards.py`, full 122-card roster vs 158 real hand-slot crops from the MIT-licensed [KataCR dataset](https://github.com/wty-yy/Clash-Royale-Dataset), reference exemplars excluded): template matching from API icons **63.3%** (after fixing an icon alpha-channel bug worth +11 points), from in-game exemplars with the shared card frame cropped off **66.5%** (`--templates origin`; without the crop the frame dominates correlation and scores 24%), tiny CNN trained on augmented art + exemplars **51.3%**. Template matching ceilings in the mid-60s regardless of source; the CNN masters synthetic data but doesn't transfer. The fix is real labeled training data — which available public data cannot cleanly provide (see roadmap).
 - One play at a time: overlapping/simultaneous plays within the debounce window would be missed.
 - Elixir edge cases unmodeled (Mirror, Elixir Collector, champion abilities); the estimate drifts if any play is missed — `underflows` and `anomalies` surface that.
+- **Elixir simulation validated against real matches** (`scripts/validate_elixir.py`, KataCR replay ground truth): given play costs decoded from the true bar, regen + accounting tracks the real bar at **MAE ≈ 1.1–1.2 elixir in double-elixir phases of both matches** (~1.5 single-phase on the clean episode; the other episode carries a persistent ~2.5 offset traceable to plays missing from the dataset's own action labels — the spend audit closes the books otherwise — not to the model). Found along the way: **regen starts during the pre-match countdown**, so a tracker that starts at 5 when the timer starts reads ~1–2 low; prior manual trackers initializing at 6 were compensating for exactly this. Our tracker should gain a start offset before live use.
 - Timestamps come from frame index / fps, not the in-game timer (OCR on the match clock would be more robust to dropped frames).
 
 ## Roadmap
 
-1. **Card-identity classifier**: a tiny CNN trained on augmented official portraits (grey-out, overlay, scale augmentation — the AmarSaini recipe, which handled 87 classes with a LeNet in 2018), benchmarked by `scripts/eval_cards.py` against real crops. Template matching measured 53% top-1; the classifier needs to clear ~95% to be usable.
+1. **Real training data for the card classifier — needs fresh footage.** The CNN + augmentation pipeline exists (`clash_copilot/classify/`, `scripts/train_classifier.py`) but synthetic-only training caps at ~51-53% vs the 66.5% template baseline. Harvesting from the KataCR hand-bar sequences was investigated and **rejected: the only available episode is the one the benchmark crops were cut from**, so training there would near-duplicate the test set. The unlock is recording fresh matches (any deck, any account), then weak-labeling slot crops against the known deck with the restricted template matcher + temporal smoothing. Target ≥95% before wiring the classifier into the pipeline; until then the in-game-exemplar template matcher is the better detector head.
 2. **Better event trigger**: spawn-dust/elixir-droplet detection as the class-agnostic "a card was played" signal, with card identity classified from the surrounding crop.
 3. **Match-clock OCR** to replace frame-index time and handle double/triple elixir transitions exactly.
 4. **Evaluation harness**: replay footage + hand-logged play sequences → precision/recall for detection, mean absolute error for elixir.
