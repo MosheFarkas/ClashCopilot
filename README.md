@@ -17,8 +17,16 @@ Deck slots read **unknown until each card is revealed** — no guessing. Once al
 
 ```bash
 uv venv -p 3.12 && uv pip install -e ".[dev]"
-.venv/bin/python -m pytest              # 28 tests
+.venv/bin/python -m pytest              # 43 tests
 .venv/bin/python scripts/demo_synthetic.py
+```
+
+The same pipeline also runs on **video files** via the CLI, with a per-setup layout config (all regions normalized to frame size — no hard-coded pixels). Generate a synthetic clip to try it:
+
+```bash
+.venv/bin/python scripts/make_synthetic_video.py
+.venv/bin/python -m clash_copilot data/synthetic/clip.avi \
+    --layout data/synthetic/layout.json --templates data/synthetic/templates
 ```
 
 ## Research findings
@@ -75,11 +83,16 @@ src/clash_copilot/
   state/elixir.py        Opponent elixir simulation
   state/cycle.py         Cycle bookkeeping: seen / hand / next card / anomalies
   pipeline.py            OpponentTracker: frames -> GameState snapshots
+  geometry.py            Normalized ROI regions + per-setup layout JSON
+  report.py              Terminal formatting of GameState
+  synthetic.py           Scripted-match frame rendering for demos/tests
+  __main__.py            CLI: python -m clash_copilot VIDEO --layout ... --templates ...
   cards.py, crapi.py     Card metadata (bundled sample; official API helpers)
 scripts/
   demo_synthetic.py      End-to-end demo on rendered synthetic footage
+  make_synthetic_video.py  Synthetic clip + templates + layout for the CLI
   fetch_cards.py         Full roster + icons from the official API
-tests/                   28 tests; state and detection logic covered
+tests/                   43 tests; state, geometry, and detection logic covered
 ```
 
 ## Current limitations
