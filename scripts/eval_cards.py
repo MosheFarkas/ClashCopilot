@@ -124,11 +124,24 @@ def load_templates(source: str) -> dict:
     return templates
 
 
-def eval_templates(source: str) -> None:
+def eval_templates(source: str, restrict: bool = False) -> None:
     templates = load_templates(source)
+    if restrict:
+        # deployment mode: candidates limited to the deck's 8 cards (the
+        # tracker always knows the revealed subset via cycle bookkeeping)
+        deck = {
+            norm(d.name.removesuffix("-evolution"))
+            for d in DATASET.iterdir()
+            if d.is_dir() and not d.name.startswith("_") and d.name != "empty"
+        }
+        templates = {
+            name: t for name, t in templates.items()
+            if norm(name.split("#")[0]) in deck
+        }
     by_norm = {norm(name): name for name in templates}
-    print(f"{len(templates)} templates from '{source}' (gray, slide {TEMPLATE_SCALE})"
-          f" | test set: {DATASET}\n")
+    print(f"{len(templates)} templates from '{source}'"
+          f"{' RESTRICTED to deck' if restrict else ''}"
+          f" (gray, slide {TEMPLATE_SCALE}) | test set: {DATASET}\n")
 
     empty_scores: list[float] = []
     correct_scores: list[float] = []
@@ -187,11 +200,13 @@ def main() -> None:
     parser.add_argument("--model", help="CardClassifier weights; omit for template baseline")
     parser.add_argument("--templates", choices=["icons", "origin"], default="icons",
                         help="template source: official API icons or in-game exemplars")
+    parser.add_argument("--restrict", action="store_true",
+                        help="limit candidates to the deck's 8 cards (deployment mode)")
     args = parser.parse_args()
     if args.model:
         eval_classifier(args.model)
     else:
-        eval_templates(args.templates)
+        eval_templates(args.templates, restrict=args.restrict)
 
 
 if __name__ == "__main__":

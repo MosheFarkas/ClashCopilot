@@ -7,6 +7,11 @@ simulated: a regeneration clock minus the cost of observed plays. Rates:
 """
 
 START = 5.0
+# Validated against real matches (scripts/validate_elixir.py): regen runs
+# during the pre-match countdown, so at timer start a player holds ~6, not
+# the rulebook 5. Prior manual trackers hardcoding 6 were compensating for
+# exactly this.
+TIMER_START = 6.0
 CAP = 10.0
 BASE_SECONDS_PER_ELIXIR = 2.8
 _RATE_SEGMENTS = (  # (segment start, segment end, regen multiplier)
@@ -19,8 +24,8 @@ _RATE_SEGMENTS = (  # (segment start, segment end, regen multiplier)
 class ElixirTracker:
     """Tracks one player's estimated elixir over match time (seconds)."""
 
-    def __init__(self) -> None:
-        self.elixir = START
+    def __init__(self, start: float = START) -> None:
+        self.elixir = start
         self.leaked = 0.0  # regen lost to the 10-elixir cap
         self.underflows = 0  # spends that would have gone negative (tracking error signal)
         self._t = 0.0

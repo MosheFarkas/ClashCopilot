@@ -7,6 +7,10 @@ def test_starts_at_five():
     assert ElixirTracker().elixir == pytest.approx(5.0)
 
 
+def test_custom_start_value():
+    assert ElixirTracker(start=6.0).elixir == pytest.approx(6.0)
+
+
 def test_regenerates_one_elixir_per_2_8_seconds():
     t = ElixirTracker()
     t.advance_to(2.8)
