@@ -28,6 +28,7 @@ from clash_copilot.classify.model import CardClassifier  # noqa: E402
 ICONS = Path("data/icons")
 DATASET = Path("data/footage/katacr-dataset/images/card_classification")
 NEGATIVES = Path("data/footage/katacr-dataset/images/part2")  # real arena frames
+ORIGIN_EXEMPLARS = Path("data/footage/katacr-dataset/images/card_classification_origin")
 OUT = Path("data/models/card_cnn.pt")
 
 
@@ -61,10 +62,22 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
 
     icons = {
-        p.stem: icon
+        p.stem: [icon]
         for p in sorted(ICONS.glob("*.png"))
         if (icon := load_card_icon(p)) is not None
     }
+    # add in-game exemplars (incl. evolution variants) as extra views
+    import re
+
+    by_norm = {re.sub(r"[^a-z0-9]", "", n.lower()): n for n in icons}
+    origin_count = 0
+    for path in sorted(ORIGIN_EXEMPLARS.glob("*.jpg")):
+        card = by_norm.get(re.sub(r"[^a-z0-9]", "", path.stem.removesuffix("-evolution").lower()))
+        exemplar = cv2.imread(str(path)) if card else None
+        if exemplar is not None:
+            icons[card].append(exemplar)
+            origin_count += 1
+    print(f"in-game exemplar views added: {origin_count}")
     crops = load_labeled_crops(DATASET, roster=list(icons))
     negatives = load_negatives()
     clf = CardClassifier.new(sorted(icons) + ["empty"])

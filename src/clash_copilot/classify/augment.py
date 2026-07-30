@@ -136,22 +136,29 @@ def augment_portrait(icon: np.ndarray, rng: np.random.Generator) -> np.ndarray:
 
 
 def training_batch(
-    icons: dict[str, np.ndarray],
+    icons: dict[str, np.ndarray | list[np.ndarray]],
     per_class: int,
     rng: np.random.Generator,
     negatives: list[np.ndarray] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """(images, integer labels, class names). Classes: sorted cards + 'empty' last.
 
-    When `negatives` (real non-card imagery) is given, half the empty-class
-    samples are random crops of it instead of synthetic slots.
+    Each card may have one source image or a list of views (e.g. official
+    portrait + in-game exemplar + evolution variant); a view is drawn at
+    random per sample. When `negatives` (real non-card imagery) is given,
+    half the empty-class samples are random crops of it instead of
+    synthetic slots.
     """
     names = sorted(icons) + ["empty"]
     images, labels = [], []
     for label, name in enumerate(names):
+        views = icons[name] if name != "empty" else None
+        if isinstance(views, np.ndarray):
+            views = [views]
         for _ in range(per_class):
-            if name != "empty":
-                images.append(augment_portrait(icons[name], rng))
+            if views is not None:
+                source = views[int(rng.integers(0, len(views)))]
+                images.append(augment_portrait(source, rng))
             elif negatives and rng.random() < 0.5:
                 images.append(random_negative(negatives, rng))
             else:

@@ -31,3 +31,13 @@ def test_load_labeled_crops_skips_classes_outside_roster(tmp_path):
     write_jpg(tmp_path / "not-a-card" / "b.jpg")
     crops = load_labeled_crops(tmp_path, roster=["Hog Rider"])
     assert [expected for _, expected in crops] == ["Hog Rider"]
+
+
+def test_load_labeled_crops_excludes_reference_exemplars(tmp_path):
+    # each KataCR class dir contains a clean reference copy named after the
+    # dir (e.g. hog-rider/hog-rider.jpg == card_classification_origin) --
+    # those are training exemplars, not captured crops, and must stay out
+    write_jpg(tmp_path / "hog-rider" / "00030_2.jpg")
+    write_jpg(tmp_path / "hog-rider" / "hog-rider.jpg")
+    crops = load_labeled_crops(tmp_path, roster=["Hog Rider"])
+    assert len(crops) == 1

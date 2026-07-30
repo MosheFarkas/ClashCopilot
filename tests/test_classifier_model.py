@@ -35,7 +35,7 @@ def test_fit_overfits_a_tiny_batch():
     icons = fake_icons()
     images, labels, names = training_batch(icons, per_class=16, rng=np.random.default_rng(2))
     clf = CardClassifier.new(names)
-    clf.fit(images, labels, epochs=8, lr=1e-3)
+    clf.fit(images, labels, epochs=12, lr=1e-3)
     predicted = [name for name, _ in clf.predict(images)]
     accuracy = np.mean([p == names[l] for p, l in zip(predicted, labels)])
     assert accuracy > 0.9

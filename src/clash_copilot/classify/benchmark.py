@@ -38,6 +38,10 @@ def load_labeled_crops(
             if expected is None:
                 continue
         for jpg in sorted(class_dir.glob("*.jpg")):
+            if jpg.stem == class_dir.name:
+                # reference exemplar (copy of card_classification_origin),
+                # not a captured crop -- it may be used as training data
+                continue
             image = cv2.imread(str(jpg))
             if image is not None:
                 crops.append((cv2.resize(image, SIZE), expected))

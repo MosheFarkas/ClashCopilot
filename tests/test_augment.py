@@ -60,6 +60,17 @@ def test_training_batch_layout():
     assert (np.bincount(labels) == 4).all()
 
 
+def test_training_batch_accepts_multiple_source_images_per_card():
+    sources = [fake_icon(1), np.zeros((120, 100, 3), dtype=np.uint8)]  # incl. all-black view
+    images, labels, names = training_batch(
+        {"Knight": sources}, per_class=12, rng=np.random.default_rng(0)
+    )
+    knight_images = images[labels == names.index("Knight")]
+    # with an all-black source in the mix, some samples must be mostly dark
+    assert any(image.mean() < 40 for image in knight_images)
+    assert any(image.mean() > 60 for image in knight_images)
+
+
 def test_training_batch_uses_real_negatives_for_empty_class():
     icons = {"Knight": fake_icon(1)}
     black_patch = np.zeros((200, 300, 3), dtype=np.uint8)

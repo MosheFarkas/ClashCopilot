@@ -17,11 +17,16 @@ Measured configurations (2026-07, 168 non-empty crops):
     cross-domain art differences.
     + alpha-aware icon loading (load_card_icon; icons are RGBA with ~30%
       transparent margin that previously baked in a black silhouette):
-      gray, sliding 0.8:          64.3%   <- current template baseline
-CNN classifier trained on augmented icons (--model): 53.0% -- masters the
-synthetic domain (loss ~0.1) but does not transfer past the template
-baseline. Closing the remaining gap needs real labeled slot crops (see
-README roadmap); this script stays as the benchmark harness for both.
+      gray, sliding 0.8:          64.3% (168 crops) / 63.3% after excluding
+      the 10 reference exemplars hiding in the test dirs (158 crops)
+    in-game exemplar templates (--templates origin), central 70% cropped
+      because the shared card frame dominates correlation (24% uncropped):
+                                  66.5%   <- current template baseline
+CNN classifier (--model), trained on augmented icons + exemplar views:
+51.3% -- masters the synthetic domain (loss ~0.15) but does not transfer
+past the template baseline. Closing the gap needs real labeled slot crops
+from footage disjoint from this benchmark (see README roadmap); this
+script stays as the benchmark harness for both approaches.
 
 Run:  .venv/bin/python scripts/eval_cards.py            # template baseline
       .venv/bin/python scripts/eval_cards.py --model data/models/card_cnn.pt
@@ -40,6 +45,7 @@ from clash_copilot.cards import load_card_icon  # noqa: E402
 from clash_copilot.detection.template import best_template_match  # noqa: E402
 
 ICONS = Path("data/icons")
+ORIGIN = Path("data/footage/katacr-dataset/images/card_classification_origin")
 DATASET = Path("data/footage/katacr-dataset/images/card_classification")
 SIZE = (64, 80)  # (w, h): crops compared at this scale
 TEMPLATE_SCALE = 0.8  # templates smaller than crops -> alignment tolerance
@@ -84,15 +90,45 @@ def eval_classifier(model_path: str) -> None:
           f" = {overall['hits']/overall['n']:.1%}")
 
 
-def eval_templates() -> None:
+def load_templates(source: str) -> dict:
+    """Card-name-keyed grayscale templates from API icons or in-game exemplars.
+
+    In "origin" mode, evolution exemplars are added as extra views keyed
+    "<Card>#evo" -- strip the suffix before scoring.
+    """
     template_size = (int(SIZE[0] * TEMPLATE_SCALE), int(SIZE[1] * TEMPLATE_SCALE))
+    prep = lambda image: cv2.resize(to_gray(cv2.resize(image, SIZE)), template_size)  # noqa: E731
     templates = {}
-    for path in sorted(ICONS.glob("*.png")):
-        icon = load_card_icon(path)
-        if icon is not None:
-            templates[path.stem] = cv2.resize(to_gray(cv2.resize(icon, SIZE)), template_size)
+    if source == "icons":
+        for path in sorted(ICONS.glob("*.png")):
+            icon = load_card_icon(path)
+            if icon is not None:
+                templates[path.stem] = prep(icon)
+        return templates
+    roster = {norm(p.stem): p.stem for p in sorted(ICONS.glob("*.png"))}
+    for path in sorted(ORIGIN.glob("*.jpg")):
+        base = path.stem.removesuffix("-evolution")
+        card = roster.get(norm(base))
+        if card is None:
+            continue
+        image = cv2.imread(str(path))
+        if image is None:
+            continue
+        # keep the central 70%: the in-game frame is near-identical across
+        # cards and dominates normalized correlation (24% -> 66% measured)
+        h, w = image.shape[:2]
+        my, mx = int(h * 0.15), int(w * 0.15)
+        image = image[my : h - my, mx : w - mx]
+        key = card if path.stem == base else f"{card}#evo"
+        templates[key] = prep(image)
+    return templates
+
+
+def eval_templates(source: str) -> None:
+    templates = load_templates(source)
     by_norm = {norm(name): name for name in templates}
-    print(f"{len(templates)} roster templates (gray, slide {TEMPLATE_SCALE}) | test set: {DATASET}\n")
+    print(f"{len(templates)} templates from '{source}' (gray, slide {TEMPLATE_SCALE})"
+          f" | test set: {DATASET}\n")
 
     empty_scores: list[float] = []
     correct_scores: list[float] = []
@@ -110,10 +146,14 @@ def eval_templates() -> None:
         scores: list[float] = []
         confusions: Counter = Counter()
         for jpg in sorted(class_dir.glob("*.jpg")):
+            if jpg.stem == class_dir.name:
+                continue  # reference exemplar, excluded from the benchmark
             crop = cv2.imread(str(jpg))
             if crop is None:
                 continue
             card, score = best_template_match(to_gray(cv2.resize(crop, SIZE)), templates)
+            if card is not None:
+                card = card.split("#")[0]  # evolution views score as the base card
             n += 1
             scores.append(score)
             if class_dir.name == "empty":
@@ -145,11 +185,13 @@ def eval_templates() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="CardClassifier weights; omit for template baseline")
+    parser.add_argument("--templates", choices=["icons", "origin"], default="icons",
+                        help="template source: official API icons or in-game exemplars")
     args = parser.parse_args()
     if args.model:
         eval_classifier(args.model)
     else:
-        eval_templates()
+        eval_templates(args.templates)
 
 
 if __name__ == "__main__":
