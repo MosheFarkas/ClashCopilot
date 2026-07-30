@@ -58,7 +58,21 @@ def test_state_emitted_only_on_play_events(tracker):
 
 def test_elixir_accounts_for_regen_and_cost(tracker):
     trk, templates = tracker
-    # confirmed on 2nd frame at t=0.28: regen 0.28/2.8 = 0.1, spend 4
+    # starts at 6 (countdown regen); confirmed on 2nd frame at t=0.28:
+    # regen 0.28/2.8 = 0.1, spend 4
+    frames = [
+        frame_with(templates["Hog Rider"], 0.0),
+        frame_with(templates["Hog Rider"], 0.28),
+    ]
+    states = [s for s in (trk.process_frame(f) for f in frames) if s is not None]
+    assert states[-1].elixir == pytest.approx(6.1 - 4.0)
+
+
+def test_start_elixir_can_be_overridden():
+    templates = make_templates(["Hog Rider"])
+    trk = OpponentTracker(
+        TemplateCardDetector(templates, confirm_frames=2), COSTS, start_elixir=5.0
+    )
     frames = [
         frame_with(templates["Hog Rider"], 0.0),
         frame_with(templates["Hog Rider"], 0.28),

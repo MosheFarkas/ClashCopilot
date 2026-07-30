@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from clash_copilot.capture.source import Frame
 from clash_copilot.detection.template import PlayEvent, TemplateCardDetector
 from clash_copilot.state.cycle import CycleTracker
-from clash_copilot.state.elixir import ElixirTracker
+from clash_copilot.state.elixir import TIMER_START, ElixirTracker
 
 DECK_SIZE = 8
 
@@ -35,10 +35,15 @@ class OpponentTracker:
     fail loudly rather than silently corrupt the elixir estimate).
     """
 
-    def __init__(self, detector: TemplateCardDetector, card_costs: dict[str, int]):
+    def __init__(
+        self,
+        detector: TemplateCardDetector,
+        card_costs: dict[str, int],
+        start_elixir: float = TIMER_START,
+    ):
         self.detector = detector
         self.card_costs = card_costs
-        self.elixir = ElixirTracker()
+        self.elixir = ElixirTracker(start=start_elixir)
         self.cycle = CycleTracker()
 
     def process_frame(self, frame: Frame) -> GameState | None:
