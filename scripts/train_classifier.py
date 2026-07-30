@@ -29,6 +29,7 @@ ICONS = Path("data/icons")
 DATASET = Path("data/footage/katacr-dataset/images/card_classification")
 NEGATIVES = Path("data/footage/katacr-dataset/images/part2")  # real arena frames
 ORIGIN_EXEMPLARS = Path("data/footage/katacr-dataset/images/card_classification_origin")
+REAL_CROPS = Path("data/train_crops")  # weak-labeled harvest (scripts/harvest_crops.py)
 OUT = Path("data/models/card_cnn.pt")
 
 
@@ -78,6 +79,18 @@ def main() -> None:
             icons[card].append(exemplar)
             origin_count += 1
     print(f"in-game exemplar views added: {origin_count}")
+    # weak-labeled real crops from footage (QA'd; see harvest_crops.py)
+    real_count = 0
+    if REAL_CROPS.exists():
+        for class_dir in sorted(REAL_CROPS.iterdir()):
+            if class_dir.name not in icons:
+                continue
+            for jpg in class_dir.glob("*.jpg"):
+                crop = cv2.imread(str(jpg))
+                if crop is not None:
+                    icons[class_dir.name].append(crop)
+                    real_count += 1
+    print(f"real harvested views added: {real_count}")
     crops = load_labeled_crops(DATASET, roster=list(icons))
     negatives = load_negatives()
     clf = CardClassifier.new(sorted(icons) + ["empty"])

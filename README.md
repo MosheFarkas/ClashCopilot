@@ -95,7 +95,9 @@ scripts/
   make_synthetic_video.py  Synthetic clip + templates + layout for the CLI
   fetch_cards.py         Full roster + icons from the official API
   eval_cards.py          Benchmark: card identity vs real footage crops
-  train_classifier.py    Train the CNN on augmented portraits ([ml] extra)
+  train_classifier.py    Train the CNN on augmented portraits + real crops ([ml] extra)
+  harvest_crops.py       Weak-label real slot crops from match recordings
+  validate_elixir.py     Score the elixir simulation vs replay ground truth
 tests/                   43 tests; state, geometry, and detection logic covered
 ```
 
@@ -110,7 +112,7 @@ tests/                   43 tests; state, geometry, and detection logic covered
 
 ## Roadmap
 
-1. **Real training data for the card classifier — needs fresh footage.** The CNN + augmentation pipeline exists (`clash_copilot/classify/`, `scripts/train_classifier.py`) but synthetic-only training caps at ~51-53% vs the 66.5% template baseline. Harvesting from the KataCR hand-bar sequences was investigated and **rejected: the only available episode is the one the benchmark crops were cut from**, so training there would near-duplicate the test set. The unlock is recording fresh matches (any deck, any account), then weak-labeling slot crops against the known deck with the restricted template matcher + temporal smoothing. Target ≥95% before wiring the classifier into the pipeline; until then the in-game-exemplar template matcher is the better detector head.
+1. **Scale the real-crop harvest.** The weak-label pipeline is built and validated end-to-end (`scripts/harvest_crops.py`: per-match deck voting from slot reads, deck-restricted matching, temporal smoothing, hue verification against current icons, and a visual QA pass that caught three systematically mislabeled classes — including 2025-era cards absent from the 2024 exemplar set being force-fit to old identities). Two YouTube videos yielded **3,402 QA'd crops across 20 classes**, and retraining with them moved the benchmark 51.3% → **55.1%**, with per-class gains concentrated exactly where real data exists (Cannon 58→79%, Fireball 43→79%). The path to ≥95% is more footage covering more classes — harvesting is ~30 min/video of compute with QA montages as the gate. (KataCR hand-bar sequences were rejected as a source: same episode as the benchmark crops — test-set leakage.)
 2. **Better event trigger**: spawn-dust/elixir-droplet detection as the class-agnostic "a card was played" signal, with card identity classified from the surrounding crop.
 3. **Match-clock OCR** to replace frame-index time and handle double/triple elixir transitions exactly.
 4. **Evaluation harness**: replay footage + hand-logged play sequences → precision/recall for detection, mean absolute error for elixir.

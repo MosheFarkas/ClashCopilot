@@ -91,37 +91,9 @@ def eval_classifier(model_path: str) -> None:
 
 
 def load_templates(source: str) -> dict:
-    """Card-name-keyed grayscale templates from API icons or in-game exemplars.
+    from clash_copilot.classify.templates import load_templates as load
 
-    In "origin" mode, evolution exemplars are added as extra views keyed
-    "<Card>#evo" -- strip the suffix before scoring.
-    """
-    template_size = (int(SIZE[0] * TEMPLATE_SCALE), int(SIZE[1] * TEMPLATE_SCALE))
-    prep = lambda image: cv2.resize(to_gray(cv2.resize(image, SIZE)), template_size)  # noqa: E731
-    templates = {}
-    if source == "icons":
-        for path in sorted(ICONS.glob("*.png")):
-            icon = load_card_icon(path)
-            if icon is not None:
-                templates[path.stem] = prep(icon)
-        return templates
-    roster = {norm(p.stem): p.stem for p in sorted(ICONS.glob("*.png"))}
-    for path in sorted(ORIGIN.glob("*.jpg")):
-        base = path.stem.removesuffix("-evolution")
-        card = roster.get(norm(base))
-        if card is None:
-            continue
-        image = cv2.imread(str(path))
-        if image is None:
-            continue
-        # keep the central 70%: the in-game frame is near-identical across
-        # cards and dominates normalized correlation (24% -> 66% measured)
-        h, w = image.shape[:2]
-        my, mx = int(h * 0.15), int(w * 0.15)
-        image = image[my : h - my, mx : w - mx]
-        key = card if path.stem == base else f"{card}#evo"
-        templates[key] = prep(image)
-    return templates
+    return load(source, ICONS, ORIGIN)
 
 
 def eval_templates(source: str, restrict: bool = False) -> None:
