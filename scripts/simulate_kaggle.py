@@ -42,9 +42,13 @@ def main() -> None:
     # mirror the bundle as the read-only /kaggle/input mount
     shutil.copytree(BUNDLE, input_dir,
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    for path in input_dir.rglob("*"):  # Kaggle mounts inputs read-only
-        if path.is_file():
-            path.chmod(0o444)
+    # Kaggle mounts inputs read-only -- directories too, so code that
+    # mkdirs next to its own source fails there. Marking only files
+    # read-only let exactly that bug through to a real run.
+    paths = sorted(input_dir.rglob("*"), reverse=True)
+    for path in paths:
+        path.chmod(0o444 if path.is_file() else 0o555)
+    input_dir.chmod(0o555)
 
     kernel = (BUNDLE / "kernel.py").read_text()
     kernel = kernel.replace("epochs={}".format(_epochs_in(kernel)), f"epochs={args.epochs}") \
@@ -74,6 +78,11 @@ def main() -> None:
     ok = result.returncode == 0 and any(w.name == "last.pt" for w in weights)
     print("\nSIMULATION PASSED" if ok else "\nSIMULATION FAILED")
     if not args.keep:
+        for path in sorted(sandbox.rglob("*"), reverse=True):
+            try:
+                path.chmod(0o755)  # restore write bits so cleanup can remove them
+            except OSError:
+                pass
         shutil.rmtree(sandbox, ignore_errors=True)
     sys.exit(0 if ok else 1)
 

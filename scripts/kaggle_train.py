@@ -90,7 +90,17 @@ print("ultralytics", ultralytics.__version__, "from", ultralytics.__file__, flus
 
 # KataCR's dataset path is read at import time from this env var
 os.environ["KATACR_DATASET"] = f"{{DATA}}/katacr-dataset"
-sys.path.insert(0, f"{{DATA}}/KataCR")
+# Import KataCR from a WRITABLE copy: constant.py mkdirs a logs/ dir next
+# to its own source at import time, which fails on the read-only mount.
+KATACR_SRC = str(Path(WORK) / "KataCR")
+if not Path(KATACR_SRC).exists():
+    shutil.copytree(f"{{DATA}}/KataCR", KATACR_SRC)
+    # copytree preserves the mount's read-only bits, so restore write
+    # permission or the copy is just as unwritable as the original
+    for _p in Path(KATACR_SRC).rglob("*"):
+        _p.chmod(0o755 if _p.is_dir() else 0o644)
+    Path(KATACR_SRC).chmod(0o755)
+sys.path.insert(0, KATACR_SRC)
 
 # jax is imported only for plotting helpers in the training import chain.
 # Installing it risks a numpy conflict with torch, so satisfy the import
