@@ -27,3 +27,4 @@ data/models/*.onnx
 data/serve/
 vendor/
 .venv-katacr/
+data/models/*.pt
