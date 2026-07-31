@@ -39,16 +39,80 @@ API = "https://www.kaggle.com/api/v1"
 
 # What the kernel runs on Kaggle's GPU.
 KERNEL_SOURCE = '''
-import os, sys, subprocess
-subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                "ultralytics==8.1.24", "numpy==1.26.4"], check=True)
-DATA = "/kaggle/input/{dataset}"
-sys.path.insert(0, f"{{DATA}}/KataCR")
-os.makedirs("/kaggle/working/runs", exist_ok=True)
+"""Fine-tune the KataCR detector. Runs on Kaggle GPU; also runnable locally
+against a simulated layout (see scripts/simulate_kaggle.py) so the whole
+path is proven before it costs GPU hours."""
+import os, sys, types, shutil, subprocess
+from pathlib import Path
 
-# point KataCR at the bundled dataset
-import katacr.build_dataset.constant as const
-const.path_dataset = __import__("pathlib").Path(f"{{DATA}}/katacr-dataset")
+DATA = os.environ.get("CC_INPUT", "/kaggle/input/{dataset}")
+WORK = os.environ.get("CC_WORKING", "/kaggle/working")
+Path(WORK).mkdir(parents=True, exist_ok=True)
+
+# --- preflight: fail loudly and early rather than deep inside training ---
+need = [f"{{DATA}}/KataCR/katacr", f"{{DATA}}/katacr-dataset/images/segment",
+        f"{{DATA}}/katacr-dataset/images/part2", f"{{DATA}}/detector1_v0.7.13.pt"]
+missing = [p for p in need if not Path(p).exists()]
+assert not missing, f"missing inputs: {{missing}}"
+nbg = len(list(Path(f"{{DATA}}/katacr-dataset/images/segment/backgrounds").glob("*.jpg")))
+print(f"preflight ok | backgrounds={{nbg}}", flush=True)
+
+if os.environ.get("CC_INSTALL", "1") == "1":
+    # KataCR subclasses ultralytics internals that moved after 8.1.x, and
+    # that release predates numpy 2.
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                    "ultralytics==8.1.24", "numpy<2"], check=True)
+    # the torch<->numpy bridge is what actually breaks on a version
+    # mismatch, and it fails deep inside the dataloader; check it now
+    check = subprocess.run(
+        [sys.executable, "-c",
+         "import numpy,torch;torch.from_numpy(numpy.zeros((2,2),dtype='float32'));"
+         "print('bridge ok',numpy.__version__,torch.__version__)"],
+        capture_output=True, text=True)
+    print(check.stdout.strip() or check.stderr.strip()[-400:], flush=True)
+    assert "bridge ok" in check.stdout, "torch/numpy mismatch after install"
+
+# KataCR's dataset path is read at import time from this env var
+os.environ["KATACR_DATASET"] = f"{{DATA}}/katacr-dataset"
+sys.path.insert(0, f"{{DATA}}/KataCR")
+
+# jax is imported only for plotting helpers in the training import chain.
+# Installing it risks a numpy conflict with torch, so satisfy the import
+# with a stub when it is absent.
+try:
+    import jax  # noqa: F401
+except Exception:
+    stub = types.ModuleType("jax"); stub.numpy = types.ModuleType("jax.numpy")
+    stub.jit = lambda f=None, **k: (f if f else (lambda g: g))
+    sys.modules["jax"] = stub; sys.modules["jax.numpy"] = stub.numpy
+    print("jax not present -> stubbed", flush=True)
+
+# torch >= 2.6 defaults torch.load(weights_only=True), which cannot load
+# these checkpoints (they pickle KataCR's custom model class).
+import torch
+_orig_load = torch.load
+def _load(*a, **k):
+    k.setdefault("weights_only", False)
+    return _orig_load(*a, **k)
+torch.load = _load
+print("torch", torch.__version__, "| cuda", torch.cuda.is_available(), flush=True)
+
+# Rewrite the data config into a writable dir: /kaggle/input is read-only
+# and the bundled yaml/annotation list carry authoring-machine paths.
+part2 = f"{{DATA}}/katacr-dataset/images/part2"
+ann = Path(WORK) / "yolo_annotation.txt"
+imgs = sorted(str(p) for p in Path(part2).rglob("*.jpg"))
+assert imgs, "no validation images found"
+ann.write_text("\\n".join(imgs))
+src_yaml = Path(f"{{DATA}}/KataCR/katacr/yolov8/detector1/data.yaml").read_text().split("\\n")
+out = []
+for line in src_yaml:
+    if line.startswith("path:"): out.append(f"path: {{part2}}")
+    elif line.startswith("val:"): out.append(f"val: {{ann}}")
+    else: out.append(line)
+data_yaml = Path(WORK) / "data.yaml"
+data_yaml.write_text("\\n".join(out))
+print(f"val images={{len(imgs)}} | data.yaml -> {{data_yaml}}", flush=True)
 
 import katacr.yolov8.cfg as kcfg
 kcfg.train_datasize = {datasize}
@@ -60,17 +124,19 @@ from katacr.yolov8.train import YOLO_CR
 
 model = YOLO_CR(f"{{DATA}}/detector1_v0.7.13.pt")
 cfg = dict(get_cfg(f"{{DATA}}/KataCR/katacr/yolov8/ClashRoyale.yaml"))
-cfg.update(data=f"{{DATA}}/KataCR/katacr/yolov8/detector1/data.yaml",
-           epochs={epochs}, batch={batch}, imgsz=896, device=0, workers=4,
-           amp=True, val=True, plots=False, pretrained=True,
+cfg.update(data=str(data_yaml),
+           epochs={epochs}, batch={batch}, imgsz=896,
+           device=(0 if torch.cuda.is_available() else "cpu"),
+           workers=int(os.environ.get("CC_WORKERS", "4")),
+           amp=torch.cuda.is_available(), val=True, plots=False, pretrained=True,
            optimizer="AdamW", lr0=1e-4, lrf=0.2, warmup_epochs=1.0,
            cos_lr=True, freeze={freeze},
            # checkpoint every epoch: Kaggle hard-kills sessions at 9h and a
            # killed run saves no output, so partial progress must be durable
            save_period=1,
-           project="/kaggle/working/runs", name="ft", exist_ok=True)
+           project=f"{{WORK}}/runs", name="ft", exist_ok=True)
 model.train(**cfg)
-print("TRAINING DONE")
+print("TRAINING DONE", flush=True)
 '''
 
 
