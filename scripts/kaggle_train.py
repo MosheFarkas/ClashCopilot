@@ -197,8 +197,11 @@ def kaggle_client():
     return api
 
 
+_USERNAME = os.environ.get("KAGGLE_USERNAME")  # captured before token auth clears it
+
+
 def username() -> str:
-    user = os.environ.get("KAGGLE_USERNAME")
+    user = os.environ.get("KAGGLE_USERNAME") or _USERNAME
     if not user:
         sys.exit("set KAGGLE_USERNAME in .env (this token cannot resolve it: "
                  "users.get is denied). It is the name in your Kaggle profile URL.")
