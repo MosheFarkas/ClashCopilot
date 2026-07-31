@@ -45,13 +45,34 @@ path is proven before it costs GPU hours."""
 import os, sys, types, shutil, subprocess
 from pathlib import Path
 
-DATA = os.environ.get("CC_INPUT", "/kaggle/input/{dataset}")
+MARKER = "detector1_v0.7.13.pt"
+
+
+def find_input():
+    """Locate the attached dataset by its marker file.
+
+    Kaggle has mounted datasets at both /kaggle/input/<slug>/ and
+    /kaggle/input/datasets/<owner>/<slug>/; searching for a known file is
+    robust to either (and to the local simulator).
+    """
+    override = os.environ.get("CC_INPUT")
+    if override:
+        return override
+    for base in ("/kaggle/input",):
+        hits = sorted(Path(base).rglob(MARKER)) if Path(base).exists() else []
+        if hits:
+            return str(hits[0].parent)
+    raise SystemExit(f"could not find {{MARKER}} under /kaggle/input")
+
+
+DATA = find_input()
 WORK = os.environ.get("CC_WORKING", "/kaggle/working")
 Path(WORK).mkdir(parents=True, exist_ok=True)
+print("input root:", DATA, flush=True)
 
 # --- preflight: fail loudly and early rather than deep inside training ---
 need = [f"{{DATA}}/KataCR/katacr", f"{{DATA}}/katacr-dataset/images/segment",
-        f"{{DATA}}/katacr-dataset/images/part2", f"{{DATA}}/detector1_v0.7.13.pt"]
+        f"{{DATA}}/katacr-dataset/images/part2", f"{{DATA}}/{{MARKER}}"]
 missing = [p for p in need if not Path(p).exists()]
 assert not missing, f"missing inputs: {{missing}}"
 nbg = len(list(Path(f"{{DATA}}/katacr-dataset/images/segment/backgrounds").glob("*.jpg")))
@@ -122,7 +143,7 @@ cds.train_datasize = {datasize}
 from ultralytics.cfg import get_cfg
 from katacr.yolov8.train import YOLO_CR
 
-model = YOLO_CR(f"{{DATA}}/detector1_v0.7.13.pt")
+model = YOLO_CR(f"{{DATA}}/{{MARKER}}")
 cfg = dict(get_cfg(f"{{DATA}}/KataCR/katacr/yolov8/ClashRoyale.yaml"))
 cfg.update(data=str(data_yaml),
            epochs={epochs}, batch={batch}, imgsz=896,
