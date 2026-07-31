@@ -41,7 +41,29 @@ KataCR's weights are the fix, with three integration details worth knowing: the 
 
 Boxes are stabilized across frames: ByteTrack association (`supervision`, Apache-2.0) plus a per-track majority vote over name/side and windowed-mean confidence — measured on real footage, this cuts frame-to-frame label/side flicker from 11.9% to 5.4% of matched box pairs.
 
-Remaining accuracy gaps: **recall** — some on-screen units get no box (KataCR's sprite set is frozen at ~May 2024, so 2025-26 cards are unrepresented); spells and area effects are detected inconsistently; and confidence thresholds trade recall against phantom boxes.
+### Measured accuracy
+
+Two independent audits of the same 6 frames of 2026 footage (every box graded by eye, misses counted):
+
+| | boxes | correct | precision | recall |
+|---|---|---|---|---|
+| audit A | 28 | 22 | 79% | 56% |
+| audit B | 28 | 23 | 82% | 58% |
+
+KataCR ships 260 real labeled frames, which gives an automatic, repeatable metric (`scripts/val_detector.py`). The released detector1 scores **mAP50 0.863 / precision 0.903 / recall 0.818** there — on its own 2023 domain. The gap between that and ~57% recall on our 2026 footage *is* the domain gap.
+
+Both audits agree on the causes, and they are different problems:
+- **False positives are all scenery** — a "bat" on a tower roof, armor debris read as `bomber-evolution`, one box on bare floor.
+- **Misses split in two**: units with no class at all (Suspicious Bush, released 2024-07, appears in 3 of 6 frames and is never detected), and small clustered units (a column of skeletons where 2 of 5 are found).
+
+### What was tried, and the negative result
+
+Two fixes were built and measured:
+
+1. **2026-domain training data, for free.** `scripts/extract_backgrounds.py` recovers clean arena backgrounds by taking a per-pixel median over sampled frames — units move, arena art doesn't. 24 backgrounds extracted from current footage now make up about half the generator's pool, so composites land on current arena art.
+2. **New classes without touching the model head.** Each detector carries 3 unused `padding_*` class slots. `scripts/fetch_unit_sprites.py` pulls post-2024 unit sprites from a decoded asset dump as alpha-cropped RGBA in KataCR's segment format (over HTTP, no 3.8 GB clone). Verified end-to-end on Suspicious Bush: 40 sprites fetched, class registered in a spare slot, and the generator now composites and auto-labels it (13 instances across 10 generated images).
+
+**Fine-tuning on this data made the model worse, not better.** A 24-image run at lr 2e-4 dropped mAP50 from 0.863 to 0.799 and recall from 0.818 to 0.685 — catastrophic forgetting from too few optimizer steps, reproducible across validation passes. The shipped detector therefore remains the unmodified KataCR weights. The data pipeline is correct; what it needs is *scale*, and Apple-Silicon training is ~6x slower than a rented GPU, with AMP unusable on MPS. Published guidance for adding classes to a YOLO detector is ~100-200 instances per new class plus 20-30% replay of the original data, two-phase (freeze backbone, then unfreeze) — a few thousand images, i.e. a few GPU-hours (~$2-3 on a rented 4090, or free Kaggle GPU time).
 
 The same pipeline also runs on **video files** via the CLI, with a per-setup layout config (all regions normalized to frame size — no hard-coded pixels). Generate a synthetic clip to try it:
 
@@ -136,6 +158,8 @@ tests/                   43 tests; state, geometry, and detection logic covered
 - Timestamps come from frame index / fps, not the in-game timer (OCR on the match clock would be more robust to dropped frames).
 
 ## Roadmap
+
+0. **Train the arena detector at proper scale** (the one thing blocking "accurate"). Everything upstream is built and verified: 2026 backgrounds, new-class sprite fetching, registration into spare head slots, and a generator that auto-labels. What remains is a real training run — a few thousand generated images, two-phase freeze/unfreeze, with replay of the original data — on a rented or free cloud GPU rather than MPS. Measure with `scripts/val_detector.py` against the 0.863 mAP50 baseline; only ship weights that beat it.
 
 1. **Scale the real-crop harvest.** The weak-label pipeline is built and validated end-to-end (`scripts/harvest_crops.py`: per-match deck voting from slot reads, deck-restricted matching, temporal smoothing, hue verification against current icons, and a visual QA pass that caught three systematically mislabeled classes — including 2025-era cards absent from the 2024 exemplar set being force-fit to old identities). Two YouTube videos yielded **3,402 QA'd crops across 20 classes**, and retraining with them moved the benchmark 51.3% → **55.1%**, with per-class gains concentrated exactly where real data exists (Cannon 58→79%, Fireball 43→79%). The path to ≥95% is more footage covering more classes — harvesting is ~30 min/video of compute with QA montages as the gate. (KataCR hand-bar sequences were rejected as a source: same episode as the benchmark crops — test-set leakage.)
 2. **Better event trigger**: spawn-dust/elixir-droplet detection as the class-agnostic "a card was played" signal, with card identity classified from the surrounding crop.
