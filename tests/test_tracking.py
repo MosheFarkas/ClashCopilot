@@ -1,6 +1,46 @@
 import pytest
 
-from clash_copilot.detection.tracking import TrackSmoother
+from clash_copilot.detection.tracking import TrackCoaster, TrackSmoother
+
+
+def test_coaster_passes_through_live_tracks():
+    coaster = TrackCoaster(max_age=3)
+    out = coaster.update({1: ("giant", "enemy", 0.9, (0, 0, 10, 10))})
+    assert out[1][0] == "giant"
+
+
+def test_coaster_holds_a_briefly_lost_track():
+    coaster = TrackCoaster(max_age=3)
+    coaster.update({1: ("giant", "enemy", 0.9, (0, 0, 10, 10))})
+    held = coaster.update({})  # detector missed it this frame
+    assert 1 in held
+    assert held[1][3] == (0, 0, 10, 10)
+
+
+def test_coaster_drops_track_after_max_age():
+    coaster = TrackCoaster(max_age=2)
+    coaster.update({1: ("giant", "enemy", 0.9, (0, 0, 10, 10))})
+    coaster.update({})
+    coaster.update({})
+    assert coaster.update({}) == {}
+
+
+def test_coaster_revives_age_when_track_returns():
+    coaster = TrackCoaster(max_age=2)
+    coaster.update({1: ("giant", "enemy", 0.9, (0, 0, 10, 10))})
+    coaster.update({})
+    coaster.update({1: ("giant", "enemy", 0.8, (1, 1, 11, 11))})
+    coaster.update({})
+    assert 1 in coaster.update({})  # age restarted, so still held
+
+
+def test_coaster_decays_confidence_while_coasting():
+    coaster = TrackCoaster(max_age=3, decay=0.5)
+    coaster.update({1: ("giant", "enemy", 0.8, (0, 0, 10, 10))})
+    first = coaster.update({})[1][2]
+    second = coaster.update({})[1][2]
+    assert first == pytest.approx(0.4)
+    assert second == pytest.approx(0.2)
 
 
 def test_majority_name_survives_single_frame_misread():

@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from clash_copilot.detection.tracking import TrackSmoother  # noqa: E402
+from clash_copilot.detection.tracking import TrackCoaster, TrackSmoother  # noqa: E402
 
 COLORS = {"ally": (80, 220, 80), "enemy": (60, 60, 235)}
 
@@ -40,6 +40,8 @@ def main() -> None:
     parser.add_argument("dets")
     parser.add_argument("--out", required=True)
     parser.add_argument("--no-track", action="store_true")
+    parser.add_argument("--coast", type=int, default=4,
+                        help="frames to hold a lost track (0 disables)")
     args = parser.parse_args()
 
     data = json.loads(Path(args.dets).read_text())
@@ -53,6 +55,7 @@ def main() -> None:
 
         tracker = ByteTrack(frame_rate=int(round(fps / stride)))
         smoother = TrackSmoother(window=7)
+        coaster = TrackCoaster(max_age=args.coast) if args.coast else None
         names = sorted({d["name"] for dets in frames.values() for d in dets})
         name_to_id = {n: i for i, n in enumerate(names)}
 
@@ -82,7 +85,7 @@ def main() -> None:
                         data={"side": np.array([d["side"] for d in dets])},
                     )
                     tracked = tracker.update_with_detections(detections)
-                    items = []
+                    live = {}
                     for i in range(len(tracked)):
                         tid = int(tracked.tracker_id[i])
                         name, side, conf = smoother.update(
@@ -90,12 +93,13 @@ def main() -> None:
                             str(tracked.data["side"][i]), float(tracked.confidence[i]),
                         )
                         x0, y0, x1, y1 = tracked.xyxy[i]
-                        items.append((name, side, conf,
-                                      (round(x0), round(y0), round(x1), round(y1))))
-                    last_items = items
+                        live[tid] = (name, side, conf,
+                                     (round(x0), round(y0), round(x1), round(y1)))
                 else:
                     tracker.update_with_detections(sv.Detections.empty())
-                    last_items = []
+                    live = {}
+                merged = coaster.update(live) if coaster else live
+                last_items = list(merged.values())
         frame = draw(frame, last_items)
         if writer is None:
             h, w = frame.shape[:2]

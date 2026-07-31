@@ -28,3 +28,5 @@ data/serve/
 vendor/
 .venv-katacr/
 data/models/*.pt
+data/backgrounds/
+data/runs/

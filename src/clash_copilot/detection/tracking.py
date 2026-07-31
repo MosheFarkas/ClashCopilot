@@ -28,6 +28,41 @@ class TrackSmoother:
         return names.most_common(1)[0][0], sides.most_common(1)[0][0], mean_conf
 
 
+class TrackCoaster:
+    """Keeps a briefly-lost track alive at its last position.
+
+    Detectors drop units for a frame or two (occlusion, animation, a spell
+    flash). Without this, boxes blink out and reappear; with it, a track
+    coasts for up to `max_age` frames with decaying confidence so a stale
+    box is visibly less certain and cannot linger.
+    """
+
+    def __init__(self, max_age: int = 4, decay: float = 0.8):
+        self.max_age = max_age
+        self.decay = decay
+        self._held: dict[int, tuple] = {}
+        self._age: dict[int, int] = {}
+
+    def update(self, live: dict[int, tuple]) -> dict[int, tuple]:
+        """live: track_id -> (name, side, conf, bbox). Returns live + coasted."""
+        for track_id, item in live.items():
+            self._held[track_id] = item
+            self._age[track_id] = 0
+
+        out = dict(live)
+        for track_id in list(self._held):
+            if track_id in live:
+                continue
+            self._age[track_id] += 1
+            if self._age[track_id] > self.max_age:
+                del self._held[track_id]
+                del self._age[track_id]
+                continue
+            name, side, conf, bbox = self._held[track_id]
+            out[track_id] = (name, side, conf * self.decay**self._age[track_id], bbox)
+        return out
+
+
 @dataclass(frozen=True)
 class TrackedDetection:
     track_id: int
