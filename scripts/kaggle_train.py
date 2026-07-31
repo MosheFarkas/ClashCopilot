@@ -78,17 +78,15 @@ assert not missing, f"missing inputs: {{missing}}"
 nbg = len(list(Path(f"{{DATA}}/katacr-dataset/images/segment/backgrounds").glob("*.jpg")))
 print(f"preflight ok | backgrounds={{nbg}}", flush=True)
 
-if os.environ.get("CC_INSTALL", "1") == "1":
-    # Kaggle kernels have NO internet unless the account is phone-verified,
-    # so the pinned ultralytics ships in the bundle as a wheel and installs
-    # offline. The pin matters: KataCR subclasses ultralytics internals that
-    # moved after 8.1.x. Kaggle already provides torch/opencv/numpy, hence
-    # --no-deps.
-    wheels = f"{{DATA}}/wheels"
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--no-index",
-                    "--no-deps", "--find-links", wheels,
-                    "ultralytics==8.1.24", "thop"], check=True)
-    print("installed ultralytics offline from bundle", flush=True)
+# Kaggle kernels have no internet unless the account is phone-verified, so
+# nothing can be pip-installed. The pinned ultralytics (KataCR subclasses
+# internals that moved after 8.1.x) is vendored as source and prepended to
+# sys.path, ahead of whatever version Kaggle preinstalls.
+sys.path.insert(0, f"{{DATA}}/pylibs")
+import ultralytics
+assert ultralytics.__version__.startswith("8.1"), (
+    f"wrong ultralytics: {{ultralytics.__version__}} (vendored copy not picked up)")
+print("ultralytics", ultralytics.__version__, "from", ultralytics.__file__, flush=True)
 
 # KataCR's dataset path is read at import time from this env var
 os.environ["KATACR_DATASET"] = f"{{DATA}}/katacr-dataset"
@@ -212,9 +210,18 @@ def package(datasize: int, epochs: int, batch: int, freeze: int) -> None:
             shutil.copytree(ds / sub, BUNDLE / "katacr-dataset" / "images" / sub,
                             ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copy(katacr / "runs" / "detector1_v0.7.13.pt", BUNDLE / "detector1_v0.7.13.pt")
-    wheels = ROOT / "data" / "wheels"
-    if wheels.exists():  # kernels have no internet; ship the pinned deps
-        shutil.copytree(wheels, BUNDLE / "wheels")
+    # Kernels have no internet, and .whl files do not survive Kaggle's
+    # dataset processing -- so ship the pinned packages as plain source
+    # trees and put them on sys.path. Both are pure Python.
+    site = next((ROOT / ".venv-katacr" / "lib").glob("python3.*")) / "site-packages"
+    libs = BUNDLE / "pylibs"
+    libs.mkdir()
+    for pkg in ("ultralytics", "thop"):
+        src = site / pkg
+        if src.exists():
+            shutil.copytree(src, libs / pkg,
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    print("vendored:", [p.name for p in libs.iterdir()])
 
     (BUNDLE / "dataset-metadata.json").write_text(json.dumps({
         "title": "ClashCopilot training inputs",
