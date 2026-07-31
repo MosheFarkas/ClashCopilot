@@ -79,19 +79,16 @@ nbg = len(list(Path(f"{{DATA}}/katacr-dataset/images/segment/backgrounds").glob(
 print(f"preflight ok | backgrounds={{nbg}}", flush=True)
 
 if os.environ.get("CC_INSTALL", "1") == "1":
-    # KataCR subclasses ultralytics internals that moved after 8.1.x, and
-    # that release predates numpy 2.
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                    "ultralytics==8.1.24", "numpy<2"], check=True)
-    # the torch<->numpy bridge is what actually breaks on a version
-    # mismatch, and it fails deep inside the dataloader; check it now
-    check = subprocess.run(
-        [sys.executable, "-c",
-         "import numpy,torch;torch.from_numpy(numpy.zeros((2,2),dtype='float32'));"
-         "print('bridge ok',numpy.__version__,torch.__version__)"],
-        capture_output=True, text=True)
-    print(check.stdout.strip() or check.stderr.strip()[-400:], flush=True)
-    assert "bridge ok" in check.stdout, "torch/numpy mismatch after install"
+    # Kaggle kernels have NO internet unless the account is phone-verified,
+    # so the pinned ultralytics ships in the bundle as a wheel and installs
+    # offline. The pin matters: KataCR subclasses ultralytics internals that
+    # moved after 8.1.x. Kaggle already provides torch/opencv/numpy, hence
+    # --no-deps.
+    wheels = f"{{DATA}}/wheels"
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--no-index",
+                    "--no-deps", "--find-links", wheels,
+                    "ultralytics==8.1.24", "thop"], check=True)
+    print("installed ultralytics offline from bundle", flush=True)
 
 # KataCR's dataset path is read at import time from this env var
 os.environ["KATACR_DATASET"] = f"{{DATA}}/katacr-dataset"
@@ -110,7 +107,12 @@ except Exception:
 
 # torch >= 2.6 defaults torch.load(weights_only=True), which cannot load
 # these checkpoints (they pickle KataCR's custom model class).
+import numpy as _np
 import torch
+# the torch<->numpy bridge is what actually breaks on a version mismatch,
+# and it otherwise fails deep inside the dataloader
+torch.from_numpy(_np.zeros((2, 2), dtype="float32"))
+print("bridge ok | numpy", _np.__version__, flush=True)
 _orig_load = torch.load
 def _load(*a, **k):
     k.setdefault("weights_only", False)
@@ -210,6 +212,9 @@ def package(datasize: int, epochs: int, batch: int, freeze: int) -> None:
             shutil.copytree(ds / sub, BUNDLE / "katacr-dataset" / "images" / sub,
                             ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copy(katacr / "runs" / "detector1_v0.7.13.pt", BUNDLE / "detector1_v0.7.13.pt")
+    wheels = ROOT / "data" / "wheels"
+    if wheels.exists():  # kernels have no internet; ship the pinned deps
+        shutil.copytree(wheels, BUNDLE / "wheels")
 
     (BUNDLE / "dataset-metadata.json").write_text(json.dumps({
         "title": "ClashCopilot training inputs",
