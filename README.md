@@ -27,7 +27,7 @@ uv venv -p 3.12 && uv pip install -e ".[dev]"
 .venv/bin/python scripts/annotate_video.py match.mp4 --start 60 --duration 10
 ```
 
-Caveats: the detector is 2024-era (post-2024 units like Berserker are missing from its 97 classes), match-end celebration effects produce spurious boxes, and there is no cross-frame tracking yet — boxes flicker per frame.
+Boxes are stabilized across frames: ByteTrack association (`supervision`, Apache-2.0) plus a per-track majority vote over name/side and windowed-mean confidence — measured on real footage, this cuts frame-to-frame label/side flicker from 11.9% to 5.4% of matched box pairs (`--no-track` reverts to raw per-frame output). Caveats: the detector is 2024-era (post-2024 units like Berserker are missing from its 97 classes), and match-end celebration effects produce spurious boxes.
 
 The same pipeline also runs on **video files** via the CLI, with a per-setup layout config (all regions normalized to frame size — no hard-coded pixels). Generate a synthetic clip to try it:
 

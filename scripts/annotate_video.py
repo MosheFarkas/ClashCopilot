@@ -17,6 +17,7 @@ import cv2
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from clash_copilot.detection.arena import ArenaDetector  # noqa: E402
+from clash_copilot.detection.tracking import TrackedArenaDetector  # noqa: E402
 
 MODELS = Path("data/models")
 COLORS = {"ally": (80, 220, 80), "enemy": (60, 60, 235)}  # BGR
@@ -43,13 +44,17 @@ def main() -> None:
     parser.add_argument("--start", type=float, default=0.0)
     parser.add_argument("--duration", type=float, default=None)
     parser.add_argument("--min-conf", type=float, default=0.45)
+    parser.add_argument("--no-track", action="store_true",
+                        help="disable ByteTrack + label smoothing (raw per-frame boxes)")
     args = parser.parse_args()
 
+    cap = cv2.VideoCapture(args.video)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
     detector = ArenaDetector(
         MODELS / "units_M_480x352.onnx", MODELS / "side.onnx", min_conf=args.min_conf
     )
-    cap = cv2.VideoCapture(args.video)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    if not args.no_track:
+        detector = TrackedArenaDetector(detector, fps=fps)
     cap.set(cv2.CAP_PROP_POS_FRAMES, int(args.start * fps))
     n_frames = int(args.duration * fps) if args.duration else None
 

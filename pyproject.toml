@@ -12,6 +12,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 ml = ["torch>=2.3"]
+arena = ["onnxruntime>=1.17", "supervision>=0.26,<0.30"]
 
 [build-system]
 requires = ["hatchling"]
