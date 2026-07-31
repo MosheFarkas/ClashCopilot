@@ -83,6 +83,16 @@ print(f"preflight ok | backgrounds={{nbg}}", flush=True)
 # internals that moved after 8.1.x) is vendored as source and prepended to
 # sys.path, ahead of whatever version Kaggle preinstalls.
 sys.path.insert(0, f"{{DATA}}/pylibs")
+
+# Kaggle preinstalls wandb; ultralytics auto-enables that integration and
+# hands it project="/kaggle/working/runs", which wandb rejects because the
+# name contains slashes. Its callback self-disables when the wandb module
+# lacks __version__, so a stub switches it off before ultralytics binds
+# callbacks -- more reliable than toggling SETTINGS after import.
+os.environ["WANDB_DISABLED"] = "true"
+os.environ["WANDB_MODE"] = "disabled"
+sys.modules["wandb"] = types.ModuleType("wandb")
+
 import ultralytics
 assert ultralytics.__version__.startswith("8.1"), (
     f"wrong ultralytics: {{ultralytics.__version__}} (vendored copy not picked up)")
