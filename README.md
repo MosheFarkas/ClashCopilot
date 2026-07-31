@@ -21,6 +21,14 @@ uv venv -p 3.12 && uv pip install -e ".[dev]"
 .venv/bin/python scripts/demo_synthetic.py
 ```
 
+**Arena detection overlay** (`scripts/annotate_video.py`): renders a match recording with boxes around troops/spells — unit name, ally/enemy side, confidence — using the MIT-licensed pretrained models from [ClashRoyaleBuildABot](https://github.com/Pbatch/ClashRoyaleBuildABot) (97-class YOLO ONNX + ally/enemy side classifier), ~2 fps processing on CPU:
+
+```bash
+.venv/bin/python scripts/annotate_video.py match.mp4 --start 60 --duration 10
+```
+
+Caveats: the detector is 2024-era (post-2024 units like Berserker are missing from its 97 classes), match-end celebration effects produce spurious boxes, and there is no cross-frame tracking yet — boxes flicker per frame.
+
 The same pipeline also runs on **video files** via the CLI, with a per-setup layout config (all regions normalized to frame size — no hard-coded pixels). Generate a synthetic clip to try it:
 
 ```bash
@@ -98,6 +106,7 @@ scripts/
   train_classifier.py    Train the CNN on augmented portraits + real crops ([ml] extra)
   harvest_crops.py       Weak-label real slot crops from match recordings
   validate_elixir.py     Score the elixir simulation vs replay ground truth
+  annotate_video.py      Arena overlay: unit boxes + name/side/confidence
 tests/                   43 tests; state, geometry, and detection logic covered
 ```
 
