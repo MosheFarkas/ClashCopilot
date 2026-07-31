@@ -273,6 +273,11 @@ def package(datasize: int, epochs: int, batch: int, freeze: int) -> None:
         "is_private": True,
         "enable_gpu": True,
         "enable_internet": True,
+        # Ask for T4s explicitly. Kaggle otherwise may assign a P100
+        # (sm_60), and its own preinstalled torch 2.10+cu128 only ships
+        # kernels for sm_70+, so a P100 fails with
+        # "no kernel image is available for execution on the device".
+        "machine_shape": os.environ.get("CC_MACHINE_SHAPE", "NvidiaTeslaT4"),
         "dataset_sources": [f"{username()}/{DATASET_SLUG}"],
     }, indent=1))
 
