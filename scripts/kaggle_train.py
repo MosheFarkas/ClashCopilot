@@ -257,6 +257,20 @@ def push() -> None:
         api.dataset_create_version(str(BUNDLE), "update", dir_mode="zip")
     except Exception:
         api.dataset_create_new(str(BUNDLE), dir_mode="zip", public=False)
+    # A kernel started before the dataset version finishes processing runs
+    # against the PREVIOUS version -- which silently omits whatever the new
+    # run depends on. Three failed runs traced to exactly this.
+    import time
+
+    for _ in range(60):
+        status = str(api.dataset_status(f"{username()}/{DATASET_SLUG}")).lower()
+        print("dataset status:", status, flush=True)
+        if "ready" in status:
+            break
+        time.sleep(20)
+    else:
+        sys.exit("dataset never became ready; not pushing kernel")
+
     print("pushing kernel ...")
     api.kernels_push(str(BUNDLE))
     print(f"kernel: https://www.kaggle.com/code/{username()}/{KERNEL_SLUG}")
