@@ -91,7 +91,14 @@ sys.path.insert(0, f"{{DATA}}/pylibs")
 # callbacks -- more reliable than toggling SETTINGS after import.
 os.environ["WANDB_DISABLED"] = "true"
 os.environ["WANDB_MODE"] = "disabled"
-sys.modules["wandb"] = types.ModuleType("wandb")
+# Every ultralytics experiment-tracking callback guards its import in a
+# try/except; a stub module makes each one self-disable. Kaggle preinstalls
+# several of these and their modern APIs no longer match what 8.1.24 calls
+# (wandb rejected the '/'-containing project name; ray.tune dropped
+# is_session_enabled). Stub them all rather than discover them one failed
+# run at a time.
+for _mod in ("wandb", "ray", "comet_ml", "mlflow", "neptune", "clearml", "dvclive"):
+    sys.modules[_mod] = types.ModuleType(_mod)
 
 import ultralytics
 assert ultralytics.__version__.startswith("8.1"), (
