@@ -21,13 +21,27 @@ uv venv -p 3.12 && uv pip install -e ".[dev]"
 .venv/bin/python scripts/demo_synthetic.py
 ```
 
-**Arena detection overlay** (`scripts/annotate_video.py`): renders a match recording with boxes around troops/spells — unit name, ally/enemy side, confidence — using the MIT-licensed pretrained models from [ClashRoyaleBuildABot](https://github.com/Pbatch/ClashRoyaleBuildABot) (97-class YOLO ONNX + ally/enemy side classifier), ~2 fps processing on CPU:
+**Arena detection overlay**: renders a match recording with boxes around troops/spells — unit name, ally/enemy side, confidence.
 
 ```bash
-.venv/bin/python scripts/annotate_video.py match.mp4 --start 60 --duration 10
+# 1. detect (pinned venv, Apple GPU ~4.6 fps) -> JSON
+.venv-katacr/bin/python scripts/katacr_infer.py match.mp4 --out dets.json --start 60 --duration 20
+# 2. render boxes with tracking (main venv)
+.venv/bin/python scripts/render_dets.py dets.json --out annotated.mp4
 ```
 
-Boxes are stabilized across frames: ByteTrack association (`supervision`, Apache-2.0) plus a per-track majority vote over name/side and windowed-mean confidence — measured on real footage, this cuts frame-to-frame label/side flicker from 11.9% to 5.4% of matched box pairs (`--no-track` reverts to raw per-frame output). Caveats: the detector is 2024-era (post-2024 units like Berserker are missing from its 97 classes), and match-end celebration effects produce spurious boxes.
+Two detectors were tried, and the choice matters more than anything else in the pipeline:
+
+| detector | trained on | result on our 19.5:9 replay footage |
+|---|---|---|
+| [ClashRoyaleBuildABot](https://github.com/Pbatch/ClashRoyaleBuildABot) 97-class ONNX (`scripts/annotate_video.py`) | hand-labeled 368×652 **emulator** captures, default arena, last retrained Sep 2024 | **unusable** — reports units that aren't in the match (`sparky 88%`, `night_witch 79%`, `giant` boxes on towers); its own issue tracker documents false positives on decorations/towers and breakage under cosmetic skins |
+| [KataCR](https://github.com/wty-yy/KataCR) dual YOLOv8l ([arXiv 2504.04783](https://arxiv.org/abs/2504.04783), MIT) | generated composites over **real phone recordings**, arena-only 568×896 crops, ~150 classes incl. towers/HP-bars/UI | **usable** — labels match what is on screen; towers classify as towers instead of becoming phantom troops |
+
+KataCR's weights are the fix, with three integration details worth knowing: the checkpoints unpickle to a custom model class, so they need a pinned environment (`ultralytics==8.1.24`, `torch==2.2.2`, `numpy<2`) and an inference-only loader that skips their training path (it imports jax); ally/enemy is a native model output (`bel` attribute), not a separate classifier; and the arena crop must match their geometry — ours was derived from their aspect-ratio profiles for 2.16-ratio video and validated against their reference crops.
+
+Boxes are stabilized across frames: ByteTrack association (`supervision`, Apache-2.0) plus a per-track majority vote over name/side and windowed-mean confidence — measured on real footage, this cuts frame-to-frame label/side flicker from 11.9% to 5.4% of matched box pairs.
+
+Remaining accuracy gaps: **recall** — some on-screen units get no box (KataCR's sprite set is frozen at ~May 2024, so 2025-26 cards are unrepresented); spells and area effects are detected inconsistently; and confidence thresholds trade recall against phantom boxes.
 
 The same pipeline also runs on **video files** via the CLI, with a per-setup layout config (all regions normalized to frame size — no hard-coded pixels). Generate a synthetic clip to try it:
 
@@ -106,7 +120,9 @@ scripts/
   train_classifier.py    Train the CNN on augmented portraits + real crops ([ml] extra)
   harvest_crops.py       Weak-label real slot crops from match recordings
   validate_elixir.py     Score the elixir simulation vs replay ground truth
-  annotate_video.py      Arena overlay: unit boxes + name/side/confidence
+  katacr_infer.py        Arena detection with KataCR weights -> JSON (.venv-katacr)
+  render_dets.py         Draw tracked detection boxes onto video
+  annotate_video.py      Older CRBAB-based overlay (kept for comparison)
 tests/                   43 tests; state, geometry, and detection logic covered
 ```
 

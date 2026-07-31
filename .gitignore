@@ -24,3 +24,6 @@ data/synthetic/
 .env
 data/train_crops/
 data/models/*.onnx
+data/serve/
+vendor/
+.venv-katacr/
