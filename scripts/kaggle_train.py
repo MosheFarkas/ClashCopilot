@@ -137,6 +137,16 @@ def _load(*a, **k):
     return _orig_load(*a, **k)
 torch.load = _load
 print("torch", torch.__version__, "| cuda", torch.cuda.is_available(), flush=True)
+# Kaggle silently ignores enable_gpu (and enable_internet) on accounts that
+# are not phone-verified. Falling back to CPU here is not a graceful
+# degradation -- YOLOv8l at 896px would run for many hours and hit the 9h
+# session cap -- so refuse rather than waste the slot.
+if os.environ.get("CC_REQUIRE_GPU", "1") == "1":
+    assert torch.cuda.is_available(), (
+        "no GPU attached. Kaggle ignores enable_gpu unless the account is "
+        "phone-verified (kaggle.com/settings -> Phone Verification). "
+        "Set CC_REQUIRE_GPU=0 to train on CPU anyway.")
+    print("gpu:", torch.cuda.get_device_name(0), flush=True)
 
 # Rewrite the data config into a writable dir: /kaggle/input is read-only
 # and the bundled yaml/annotation list carry authoring-machine paths.
