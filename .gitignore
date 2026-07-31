@@ -31,3 +31,4 @@ data/models/*.pt
 data/backgrounds/
 data/runs/
 data/roboflow/
+data/kaggle_bundle/
