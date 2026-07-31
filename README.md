@@ -167,3 +167,33 @@ tests/                   43 tests; state, geometry, and detection logic covered
 4. **Evaluation harness**: replay footage + hand-logged play sequences → precision/recall for detection, mean absolute error for elixir.
 5. **Live capture source** (`mss`) + a minimal overlay/TUI readout — for private/casual test matches only.
 6. (If ever needed) synthetic-composite arena detector per the KataCR recipe.
+
+### Training run result (Kaggle T4, 8 epochs x 2000 synthetic images)
+
+Completed in 1.05 GPU-hours. It did **not** beat the baseline, so the shipped
+detector remains KataCR's released weights:
+
+| | baseline | best epoch | final |
+|---|---|---|---|
+| mAP50 | **0.8630** | 0.8587 | 0.8467 |
+| mAP50-95 | 0.6084 | **0.6183** | 0.6038 |
+| precision | 0.9033 | **0.9080** | 0.8936 |
+| recall | **0.8183** | 0.7939 | 0.7897 |
+
+Two things this does establish. First, the **new-class pipeline works**: on real
+2026 footage the fine-tuned model detects Suspicious Bush (1 detection over 3
+frames) where the base model scores 0 because the class does not exist in it.
+Sprite fetch -> spare head slot -> generated labels -> training is proven
+end to end. Second, the **evaluation is measuring the wrong domain** -- the 260
+validation frames are 2023 gameplay while training targeted 2026 arena art, so
+a real 2026 gain cannot register here and may read as regression.
+
+A later research pass identified the likely causes, all fixable:
+sprites were cut from APK asset files rather than from real footage via SAM
+(KataCR avoided asset files precisely because they lack engine post-processing,
+team tint and in-game scaling); the extracted backgrounds bake in towers and HP
+bars where KataCR uses empty arenas and re-pastes towers as objects; and the
+validation set is 260 frames when KataCR publishes 6,939 labeled real frames.
+That pass also established the "3 spare class slots" limit is a non-problem --
+expanding the head to ~105 classes only reinitializes the classification convs
+(~606/708 tensors transfer), so the full 2026 roster is one regeneration away.
